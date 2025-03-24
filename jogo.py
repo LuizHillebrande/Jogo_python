@@ -1,6 +1,7 @@
 import pygame
 import random
 import pandas as pd
+import sqlite3
 
 '''''
 Interface gráfica e Mecânica do Jogo (Pygame) → Responsável por exibir o jogo, movimentação do personagem e do inimigo.
@@ -144,14 +145,92 @@ def gerar_pergunta(dificuldade):
     resposta_correta = str(eval(f"{a}{operador}{b}"))
     return pergunta, resposta_correta
 
-def salvar_recorde(nome, pontuacao, dificuldade):
-    df = pd.DataFrame({"Nome": [nome], "Pontuação": [pontuacao], "Dificuldade": [dificuldade]})
+def criar_tabelas():
     try:
-        df_existente = pd.read_excel("recordes.xlsx")
-        df = pd.concat([df_existente, df], ignore_index=True)
-    except FileNotFoundError:
-        pass
-    df.to_excel("recordes.xlsx", index=False)
+        # Conecta ao banco de dados
+        with sqlite3.connect('recordes.db') as conn:
+            cursor = conn.cursor()
+
+            # Criação da tabela de usuários (se não existir)
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS usuarios (
+                    id_usuario INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nome TEXT UNIQUE NOT NULL,
+                    senha TEXT NOT NULL
+                )
+            ''')
+
+            # Criação da tabela de progresso (se não existir)
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS progresso (
+                    id_progresso INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id_usuario INTEGER,
+                    pontuacao INTEGER NOT NULL,
+                    dificuldade TEXT NOT NULL,
+                    fase INTEGER NOT NULL,
+                    FOREIGN KEY (id_usuario) REFERENCES usuarios (id_usuario)
+                )
+            ''')
+
+            print("Tabelas criadas com sucesso!")
+
+    except sqlite3.Error as e:
+        print(f"Erro ao criar as tabelas: {e}")
+
+
+def registrar_usuario(nome, senha):
+    try:
+        # Conecta ao banco de dados
+        with sqlite3.connect('recordes.db') as conn:
+            cursor = conn.cursor()
+
+            # Verifica se o usuário já existe
+            cursor.execute('''
+                SELECT id_usuario FROM usuarios WHERE nome = ?
+            ''', (nome,))
+            resultado = cursor.fetchone()
+
+            if resultado:
+                print("Usuário já existe!")
+                return resultado[0]  # Retorna o id_usuario se já existir
+            else:
+                # Insere um novo usuário
+                cursor.execute('''
+                    INSERT INTO usuarios (nome, senha)
+                    VALUES (?, ?)
+                ''', (nome, senha))
+                conn.commit()
+
+                # Retorna o id do novo usuário
+                cursor.execute('''
+                    SELECT id_usuario FROM usuarios WHERE nome = ?
+                ''', (nome,))
+                id_usuario = cursor.fetchone()[0]
+                print(f"Novo usuário {nome} registrado com ID {id_usuario}")
+                return id_usuario
+
+    except sqlite3.Error as e:
+        print(f"Erro ao registrar o usuário: {e}")
+        return None
+
+def salvar_progresso(id_usuario, pontuacao, dificuldade, fase):
+    try:
+        # Conecta ao banco de dados
+        with sqlite3.connect('recordes.db') as conn:
+            cursor = conn.cursor()
+
+            # Insere o progresso do usuário na tabela de progresso
+            cursor.execute('''
+                INSERT INTO progresso (id_usuario, pontuacao, dificuldade, fase)
+                VALUES (?, ?, ?, ?)
+            ''', (id_usuario, pontuacao, dificuldade, fase))
+
+            conn.commit()
+            print(f"Progresso de ID {id_usuario} salvo com sucesso!")
+
+    except sqlite3.Error as e:
+        print(f"Erro ao salvar o progresso: {e}")
+
 
 if __name__ == "__main__":
     nome, senha, dificuldade = tela_inicial()
