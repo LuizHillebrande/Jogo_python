@@ -2,7 +2,7 @@ import pygame
 import random
 import pandas as pd
 
-'''
+'''''
 Interface gráfica e Mecânica do Jogo (Pygame) → Responsável por exibir o jogo, movimentação do personagem e do inimigo.
 Gerador de Perguntas e Respostas → Criar lógica para gerar contas matemáticas conforme a dificuldade.
 Sistema de Fases (Fácil, Médio, Difícil) → Implementar níveis de dificuldade, ajustando tempo e complexidade.
@@ -21,6 +21,7 @@ Sistema de Registro de Pontuação (Excel ou JSON) → Salvar recordes e progres
 #inicialmente salvar em um excel os dados e salvar como "record", para estimular o ensino.
 '''
 
+
 # Inicializa o Pygame
 pygame.init()
 
@@ -29,23 +30,107 @@ LARGURA, ALTURA = 800, 400
 TELA = pygame.display.set_mode((LARGURA, ALTURA))
 pygame.display.set_caption("Jogo de Matemática")
 
-# Carrega a imagem do personagem
-personagem = pygame.image.load("personagem.png")
-personagem = pygame.transform.scale(personagem, (50, 50))
-
-# Posição inicial do personagem
-x_personagem = 50
-y_personagem = ALTURA // 2
-
 # Fonte
 fonte = pygame.font.Font(None, 36)
 
-# Configurações do jogo
-dificuldade = "facil"  # Pode ser "facil", "medio" ou "dificil"
-num_perguntas = 5  # Número de perguntas no jogo
-tempo_limite = 60  # Tempo total do jogo em segundos
+def tela_inicial():
+    nome = ""
+    senha = ""
+    dificuldade = "facil"
+    ativo = "nome"
+    rodando = True
+    
+    while rodando:
+        TELA.fill((200, 200, 200))  # Fundo cinza
+        
+        texto_titulo = fonte.render("Digite seu Nome, Senha e Escolha a Dificuldade", True, (0, 0, 0))
+        TELA.blit(texto_titulo, (150, 50))
+        
+        texto_nome = fonte.render(f"Nome: {nome}", True, (0, 0, 0))
+        TELA.blit(texto_nome, (250, 100))
+        
+        texto_senha = fonte.render(f"Senha: {'*' * len(senha)}", True, (0, 0, 0))
+        TELA.blit(texto_senha, (250, 150))
+        
+        texto_dificuldade = fonte.render(f"Dificuldade: {dificuldade}", True, (0, 0, 0))
+        TELA.blit(texto_dificuldade, (250, 200))
+        
+        texto_instrucao = fonte.render("Pressione ENTER para continuar", True, (0, 0, 0))
+        TELA.blit(texto_instrucao, (250, 250))
+        
+        pygame.display.flip()
+        
+        for evento in pygame.event.get():
+            if evento.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            elif evento.type == pygame.KEYDOWN:
+                if evento.key == pygame.K_RETURN:
+                    rodando = False
+                elif evento.key == pygame.K_TAB:
+                    if ativo == "nome":
+                        ativo = "senha"
+                    elif ativo == "senha":
+                        ativo = "dificuldade"
+                    else:
+                        ativo = "nome"
+                elif evento.key == pygame.K_BACKSPACE:
+                    if ativo == "nome":
+                        nome = nome[:-1]
+                    elif ativo == "senha":
+                        senha = senha[:-1]
+                elif evento.key in [pygame.K_1, pygame.K_2, pygame.K_3] and ativo == "dificuldade":
+                    dificuldade = "facil" if evento.key == pygame.K_1 else "medio" if evento.key == pygame.K_2 else "dificil"
+                else:
+                    if ativo == "nome":
+                        nome += evento.unicode
+                    elif ativo == "senha":
+                        senha += evento.unicode
+    
+    return nome, senha, dificuldade
 
-# Função para gerar perguntas matemáticas
+def jogo(nome, dificuldade):
+    personagem = pygame.image.load("personagem.png")
+    personagem = pygame.transform.scale(personagem, (50, 50))
+    
+    x_personagem = 50
+    y_personagem = ALTURA // 2
+    
+    pergunta, resposta_correta = gerar_pergunta(dificuldade)
+    resposta_usuario = ""
+    pontuacao = 0
+    rodando = True
+    
+    while rodando:
+        TELA.fill((255, 255, 255))  # Fundo branco
+        
+        texto = fonte.render(pergunta, True, (0, 0, 0))
+        TELA.blit(texto, (50, 50))
+        
+        resposta_texto = fonte.render(resposta_usuario, True, (0, 0, 255))
+        TELA.blit(resposta_texto, (50, 100))
+        
+        TELA.blit(personagem, (x_personagem, y_personagem))
+        
+        pygame.display.flip()
+        
+        for evento in pygame.event.get():
+            if evento.type == pygame.QUIT:
+                rodando = False
+            elif evento.type == pygame.KEYDOWN:
+                if evento.key == pygame.K_RETURN:
+                    if resposta_usuario == resposta_correta:
+                        x_personagem += 50  # Move para a direita
+                        pontuacao += 1
+                    resposta_usuario = ""
+                    pergunta, resposta_correta = gerar_pergunta(dificuldade)
+                elif evento.key == pygame.K_BACKSPACE:
+                    resposta_usuario = resposta_usuario[:-1]
+                else:
+                    resposta_usuario += evento.unicode
+    
+    salvar_recorde(nome, pontuacao, dificuldade)
+
 def gerar_pergunta(dificuldade):
     if dificuldade == "facil":
         a, b = random.randint(1, 10), random.randint(1, 10)
@@ -59,9 +144,8 @@ def gerar_pergunta(dificuldade):
     resposta_correta = str(eval(f"{a}{operador}{b}"))
     return pergunta, resposta_correta
 
-# Função para registrar recordes
-def salvar_recorde(nome, pontuacao):
-    df = pd.DataFrame({"Nome": [nome], "Pontuação": [pontuacao]})
+def salvar_recorde(nome, pontuacao, dificuldade):
+    df = pd.DataFrame({"Nome": [nome], "Pontuação": [pontuacao], "Dificuldade": [dificuldade]})
     try:
         df_existente = pd.read_excel("recordes.xlsx")
         df = pd.concat([df_existente, df], ignore_index=True)
@@ -69,47 +153,7 @@ def salvar_recorde(nome, pontuacao):
         pass
     df.to_excel("recordes.xlsx", index=False)
 
-# Inicializa primeira pergunta
-pergunta, resposta_correta = gerar_pergunta(dificuldade)
-resposta_usuario = ""
-pontuacao = 0
-
-# Loop principal
-tempo_rodando = True
-while tempo_rodando:
-    TELA.fill((255, 255, 255))  # Fundo branco
-    
-    # Exibe a pergunta
-    texto = fonte.render(pergunta, True, (0, 0, 0))
-    TELA.blit(texto, (50, 50))
-    
-    # Exibe a resposta digitada
-    resposta_texto = fonte.render(resposta_usuario, True, (0, 0, 255))
-    TELA.blit(resposta_texto, (50, 100))
-    
-    # Exibe o personagem
-    TELA.blit(personagem, (x_personagem, y_personagem))
-    
-    pygame.display.flip()
-    
-    # Captura eventos
-    for evento in pygame.event.get():
-        if evento.type == pygame.QUIT:
-            tempo_rodando = False
-        elif evento.type == pygame.KEYDOWN:
-            if evento.key == pygame.K_RETURN:
-                if resposta_usuario == resposta_correta:
-                    x_personagem += 50  # Move para a direita 50 px
-                    pontuacao += 1
-                resposta_usuario = ""  # Reseta a resposta
-                pergunta, resposta_correta = gerar_pergunta(dificuldade)
-            elif evento.key == pygame.K_BACKSPACE:
-                resposta_usuario = resposta_usuario[:-1]
-            else:
-                resposta_usuario += evento.unicode  # Adiciona a tecla pressionada
-
-# Salva pontuação ao final
-tempo_rodando = False
-nome_jogador = input("Digite seu nome para salvar o recorde: ")
-salvar_recorde(nome_jogador, pontuacao)
-pygame.quit()
+if __name__ == "__main__":
+    nome, senha, dificuldade = tela_inicial()
+    jogo(nome, dificuldade)
+    pygame.quit()
