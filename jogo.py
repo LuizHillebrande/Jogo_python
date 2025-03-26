@@ -92,10 +92,17 @@ def tela_inicial():
 def jogo(nome, dificuldade):
     personagem = pygame.image.load("personagem.png")
     personagem = pygame.transform.scale(personagem, (50, 50))
+
+    inimigo = pygame.image.load("inimigo.png")
+    inimigo = pygame.transform.scale(inimigo, (50, 50))
     
     x_personagem = 50
     y_personagem = ALTURA // 2
+
+    x_inimigo = 630
+    y_inimigo = ALTURA // 2
     
+    vidas = 3
     pergunta, resposta_correta = gerar_pergunta(dificuldade)
     resposta_usuario = ""
     pontuacao = 0
@@ -111,7 +118,19 @@ def jogo(nome, dificuldade):
         TELA.blit(resposta_texto, (50, 100))
         
         TELA.blit(personagem, (x_personagem, y_personagem))
+
+        TELA.blit(inimigo, (x_inimigo, y_inimigo))
         
+        for i in range(vidas):
+            pygame.draw.circle(TELA, (255, 0, 0), (LARGURA - (i + 1) * 40, 30), 15) # Exibir barra de vida
+
+        if x_personagem < x_inimigo + 50 and x_personagem + 50 > x_inimigo and y_personagem < y_inimigo + 50 and y_personagem + 50 > y_inimigo: # Verificar se o inimigo alcançou com o personagem
+            vidas -= 1
+            x_inimigo = 630  # Voltar o inimigo para a posição inicial após acertar o personagem
+            if vidas <= 0:
+                tela_inicial()  # Volta pra tela inicial quando o personagem perde as 3 vidas
+
+
         pygame.display.flip()
         
         for evento in pygame.event.get():
@@ -122,6 +141,8 @@ def jogo(nome, dificuldade):
                     if resposta_usuario == resposta_correta:
                         x_personagem += 50  # Move para a direita
                         pontuacao += 1
+                    else:
+                        x_inimigo += -50 # Move para a esquerda
                     resposta_usuario = ""
                     pergunta, resposta_correta = gerar_pergunta(dificuldade)
                 elif evento.key == pygame.K_BACKSPACE:
