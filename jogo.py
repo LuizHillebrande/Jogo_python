@@ -1,6 +1,7 @@
 import pygame
 import random
 import pandas as pd
+import sqlite3
 
 '''''
 Interface gráfica e Mecânica do Jogo (Pygame) → Responsável por exibir o jogo, movimentação do personagem e do inimigo.
@@ -32,6 +33,53 @@ pygame.display.set_caption("Jogo de Matemática")
 
 # Fonte
 fonte = pygame.font.Font(None, 36)
+
+def criar_tabelas():
+    with sqlite3.connect('recordes.db') as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS usuarios (
+                id_usuario INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome TEXT UNIQUE NOT NULL,
+                senha TEXT NOT NULL
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS recordes (
+                id_recorde INTEGER PRIMARY KEY AUTOINCREMENT,
+                id_usuario INTEGER,
+                dificuldade TEXT NOT NULL,
+                pontuacao INTEGER NOT NULL,
+                FOREIGN KEY (id_usuario) REFERENCES usuarios (id_usuario)
+            )
+        ''')
+
+def registrar_usuario(nome, senha):
+    with sqlite3.connect('recordes.db') as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id_usuario, senha FROM usuarios WHERE nome = ?", (nome,))
+        resultado = cursor.fetchone()
+        if resultado:
+            if resultado[1] == senha:
+                return resultado[0]  # Usuário já registrado, retorna ID
+            else:
+                print("Senha incorreta!")
+                return None
+        cursor.execute("INSERT INTO usuarios (nome, senha) VALUES (?, ?)", (nome, senha))
+        conn.commit()
+        return cursor.lastrowid
+
+def salvar_recorde(id_usuario, pontuacao, dificuldade):
+    with sqlite3.connect('recordes.db') as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT pontuacao FROM recordes WHERE id_usuario = ? AND dificuldade = ?", (id_usuario, dificuldade))
+        recorde_atual = cursor.fetchone()
+        if recorde_atual:
+            if pontuacao > recorde_atual[0]:
+                cursor.execute("UPDATE recordes SET pontuacao = ? WHERE id_usuario = ? AND dificuldade = ?", (pontuacao, id_usuario, dificuldade))
+        else:
+            cursor.execute("INSERT INTO recordes (id_usuario, dificuldade, pontuacao) VALUES (?, ?, ?)", (id_usuario, dificuldade, pontuacao))
+        conn.commit()
 
 def tela_inicial():
     nome = ""
@@ -66,6 +114,9 @@ def tela_inicial():
                 exit()
             elif evento.type == pygame.KEYDOWN:
                 if evento.key == pygame.K_RETURN:
+                    id_usuario = registrar_usuario(nome, senha)
+                    if id_usuario:
+                        return id_usuario, dificuldade
                     rodando = False
                 elif evento.key == pygame.K_TAB:
                     if ativo == "nome":
@@ -150,7 +201,7 @@ def jogo(nome, dificuldade):
                 else:
                     resposta_usuario += evento.unicode
     
-    salvar_recorde(nome, pontuacao, dificuldade)
+    salvar_recorde(id_usuario, pontuacao, dificuldade)
 
 def gerar_pergunta(dificuldade):
     if dificuldade == "facil":
@@ -165,16 +216,8 @@ def gerar_pergunta(dificuldade):
     resposta_correta = str(eval(f"{a}{operador}{b}"))
     return pergunta, resposta_correta
 
-def salvar_recorde(nome, pontuacao, dificuldade):
-    df = pd.DataFrame({"Nome": [nome], "Pontuação": [pontuacao], "Dificuldade": [dificuldade]})
-    try:
-        df_existente = pd.read_excel("recordes.xlsx")
-        df = pd.concat([df_existente, df], ignore_index=True)
-    except FileNotFoundError:
-        pass
-    df.to_excel("recordes.xlsx", index=False)
-
 if __name__ == "__main__":
-    nome, senha, dificuldade = tela_inicial()
-    jogo(nome, dificuldade)
+    criar_tabelas()
+    id_usuario, dificuldade = tela_inicial()
+    jogo(id_usuario, dificuldade)
     pygame.quit()
