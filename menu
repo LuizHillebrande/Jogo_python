@@ -1,0 +1,104 @@
+import pygame
+import random
+import sqlite3
+from datetime import datetime
+
+# Inicializa o Pygame
+pygame.init()
+
+# Configurações da tela
+LARGURA, ALTURA = 800, 400
+TELA = pygame.display.set_mode((LARGURA, ALTURA))
+pygame.display.set_caption("Jogo de Matemática")
+
+# Fonte
+fonte = pygame.font.Font(None, 36)
+
+def criar_tabelas():
+    with sqlite3.connect('recordes.db') as conn:
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS usuarios (
+                id_usuario INTEGER PRIMARY KEY AUTOINCREMENT,
+                nome TEXT UNIQUE NOT NULL,
+                senha TEXT NOT NULL
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS recordes (
+                id_recorde INTEGER PRIMARY KEY AUTOINCREMENT,
+                id_usuario INTEGER,
+                dificuldade TEXT NOT NULL,
+                pontuacao INTEGER NOT NULL,
+                data TEXT NOT NULL,
+                FOREIGN KEY (id_usuario) REFERENCES usuarios (id_usuario)
+            )
+        ''')
+
+def registrar_usuario(nome, senha):
+    with sqlite3.connect('recordes.db') as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id_usuario, senha FROM usuarios WHERE nome = ?", (nome,))
+        resultado = cursor.fetchone()
+        if resultado:
+            if resultado[1] == senha:
+                return resultado[0]  # Usuário já registrado, retorna ID
+            else:
+                print("Senha incorreta!")
+                return None
+        cursor.execute("INSERT INTO usuarios (nome, senha) VALUES (?, ?)", (nome, senha))
+        conn.commit()
+        return cursor.lastrowid
+
+def salvar_recorde(id_usuario, pontuacao, dificuldade):
+    with sqlite3.connect('recordes.db') as conn:
+        cursor = conn.cursor()
+        data_atual = datetime.now().strftime('%Y-%m')
+        cursor.execute("INSERT INTO recordes (id_usuario, dificuldade, pontuacao, data) VALUES (?, ?, ?, ?)",
+                       (id_usuario, dificuldade, pontuacao, data_atual))
+        conn.commit()
+
+def obter_recordes(id_usuario, dificuldade):
+    with sqlite3.connect('recordes.db') as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT MAX(pontuacao) FROM recordes WHERE id_usuario = ?", (id_usuario,))
+        recorde_pessoal = cursor.fetchone()[0] or 0
+        cursor.execute("SELECT MAX(pontuacao) FROM recordes WHERE data = ?", (datetime.now().strftime('%Y-%m'),))
+        recorde_mes = cursor.fetchone()[0] or 0
+        cursor.execute("SELECT MAX(pontuacao) FROM recordes")
+        recorde_geral = cursor.fetchone()[0] or 0
+        cursor.execute("SELECT MAX(pontuacao) FROM recordes WHERE dificuldade = ?", (dificuldade,))
+        recorde_dificuldade = cursor.fetchone()[0] or 0
+        return recorde_pessoal, recorde_mes, recorde_geral, recorde_dificuldade
+
+def tela_final(id_usuario, dificuldade, pontuacao):
+    recorde_pessoal, recorde_mes, recorde_geral, recorde_dificuldade = obter_recordes(id_usuario, dificuldade)
+    salvar_recorde(id_usuario, pontuacao, dificuldade)
+    rodando = True
+    while rodando:
+        TELA.fill((50, 50, 50))
+        texto = fonte.render(f"Pontuação Final: {pontuacao}", True, (255, 255, 255))
+        TELA.blit(texto, (50, 50))
+        TELA.blit(fonte.render(f"Recorde Pessoal: {recorde_pessoal}", True, (255, 255, 0)), (50, 100))
+        TELA.blit(fonte.render(f"Recorde do Mês: {recorde_mes}", True, (255, 255, 0)), (50, 150))
+        TELA.blit(fonte.render(f"Recorde Geral: {recorde_geral}", True, (255, 255, 0)), (50, 200))
+        TELA.blit(fonte.render(f"Recorde na Dificuldade: {recorde_dificuldade}", True, (255, 255, 0)), (50, 250))
+        pygame.display.flip()
+        for evento in pygame.event.get():
+            if evento.type == pygame.QUIT:
+                rodando = False
+
+def jogo(id_usuario, dificuldade):
+    pontuacao = random.randint(0, 5000)  # Simulando pontuação final
+    tela_final(id_usuario, dificuldade, pontuacao)
+
+def tela_inicial():
+    id_usuario = registrar_usuario("Jogador1", "senha123")  # Simulação
+    dificuldade = "medio"
+    return id_usuario, dificuldade
+
+if __name__ == "__main__":
+    criar_tabelas()
+    id_usuario, dificuldade = tela_inicial()
+    jogo(id_usuario, dificuldade)
+    pygame.quit()
