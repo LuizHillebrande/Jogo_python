@@ -176,7 +176,7 @@ def jogo(id_usuario, dificuldade):
     y_personagem = ALTURA - 80  # Mais perto do "chão"
 
     x_inimigo = 630
-    y_inimigo = ALTURA // 2
+    y_inimigo = ALTURA - 80
     
     resposta_usuario = ""
     vidas = 3
@@ -189,7 +189,6 @@ def jogo(id_usuario, dificuldade):
         TELA.blit(fundo, (0, 0))
         TELA.blit(fonte.render(pergunta, True, (0, 0, 0)), (50, 20))
         TELA.blit(fonte.render(resposta_usuario, True, (0, 0, 255)), (50, 60))
-        TELA.blit(fonte.render(f"Vidas: {vidas}", True, (255, 0, 0)), (650, 20))
         TELA.blit(personagem, (x_personagem, y_personagem))
         TELA.blit(inimigo, (x_inimigo, y_inimigo))
         
