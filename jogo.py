@@ -49,7 +49,7 @@ def criar_tabelas():
 def registrar_usuario(nome, senha):
     with sqlite3.connect('recordes.db') as conn:
         cursor = conn.cursor()
-        cursor.execute("SELECT id_usuario, senha FROM usuarios WHERE nome = ?", (nome,))
+        cursor.execute("SELECT id_usuario, senha FROM usuarios WHERE nome = ? AND senha = ?", (nome, senha))
         resultado = cursor.fetchone()
         if resultado:
             if resultado[1] == senha:

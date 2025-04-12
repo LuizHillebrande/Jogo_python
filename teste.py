@@ -58,7 +58,7 @@ def registrar_usuario(nome, senha):
                 return resultado[0]
             else:
                 print("Senha incorreta!")
-                return None
+                return False
         cursor.execute("INSERT INTO usuarios (nome, senha) VALUES (?, ?)", (nome, senha))
         conn.commit()
         return cursor.lastrowid
@@ -68,8 +68,7 @@ def salvar_recorde(id_usuario, pontuacao, dificuldade):
     with sqlite3.connect('recordes.db') as conn:
         cursor = conn.cursor()
         data_atual = datetime.now().strftime('%Y-%m')
-        cursor.execute("INSERT INTO recordes (id_usuario, dificuldade, pontuacao, data) VALUES (?, ?, ?, ?)",
-                       (id_usuario, dificuldade, pontuacao, data_atual))
+        cursor.execute("INSERT INTO recordes (id_usuario, dificuldade, pontuacao, data) VALUES (?, ?, ?, ?)", (id_usuario, dificuldade, pontuacao, data_atual))
         conn.commit()
 
 
@@ -136,6 +135,8 @@ def tela_inicial():
     dificuldade = "facil"
     ativo = "nome"
     rodando = True
+    fonte_error_msg = pygame.font.Font(None, 30)
+    mensagem_erro = ""
 
     while rodando:
         TELA.blit(fundo_inicial, (0, 0))
@@ -146,6 +147,9 @@ def tela_inicial():
         TELA.blit(fonte.render("TAB para mudar campo e Pressione ENTER para iniciar:", True, (0, 0, 0)), (80, 300))
         TELA.blit(fonte.render("Pressione 1,2,3 para mudar a dificuldade", True, (0, 0, 0)), (80, 330))
 
+        if mensagem_erro:
+            TELA.blit(fonte_error_msg.render(mensagem_erro, True, (200, 0, 0)), (250, 200))
+
         pygame.display.flip()
 
         for evento in pygame.event.get():
@@ -154,9 +158,14 @@ def tela_inicial():
                 exit()
             elif evento.type == pygame.KEYDOWN:
                 if evento.key == pygame.K_RETURN:
-                    id_usuario = registrar_usuario(nome, senha)
-                    if id_usuario:
-                        return id_usuario, dificuldade
+                    if nome and senha:
+                        id_usuario = registrar_usuario(nome, senha)
+                        if id_usuario:
+                            return id_usuario, dificuldade
+                        else:
+                            mensagem_erro = "Usuário e/ou senha incorreta!"
+                    else:
+                        mensagem_erro = "Preencha todos os campos!"
                 elif evento.key == pygame.K_TAB:
                     if ativo == "nome": ativo = "senha"
                     elif ativo == "senha": ativo = "dificuldade"
